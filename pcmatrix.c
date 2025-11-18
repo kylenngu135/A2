@@ -64,12 +64,18 @@ int main (int argc, char *argv[]) {
   printf("With %d producer and consumer thread(s).\n", numw);
   printf("\n");
 
-  // Here is an example to define one producer and one consumer
-  pthread_t pr;
-  pthread_t co;
-
-  (void) pr;
-  (void) co;
+  pthread_t *pr = calloc(numw, sizeof(pthread_t));
+  // no free, lives to end of program
+  if (pr == NULL) {
+    perror("pcmatrix: calloc");
+    return 1;
+  }
+  pthread_t *co = calloc(numw, sizeof(pthread_t));
+  // no free, lives to end of program
+  if (co == NULL) {
+    perror("pcmatrix: calloc");
+    return 1;
+  }
 
   // Add your code here to create threads and so on
 

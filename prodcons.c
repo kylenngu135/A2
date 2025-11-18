@@ -22,23 +22,79 @@
 // Define Locks, Condition variables, and so on here
 
 /// Protects bigmatrix
-pthread_mutex_t BOUNDED_BUFFER_MUTEX = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t bounded_buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
+/// Protects bigmatrix
+pthread_cond_t bounded_buffer_put_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t bounded_buffer_get_cond = PTHREAD_COND_INITIALIZER;
+
+/// Write head into the ring buffer
+size_t bounded_buffer_write_idx = 0;
+/// The number of entries readable behind the `bounded_buffer_write_idx`
+size_t bounded_buffer_readable = 0;
 
 // Bounded buffer put() get()
 int put(Matrix * value) {
+  assert(value != NULL);
+  pthread_mutex_lock(&bounded_buffer_mutex);
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_readable >= 0);
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_write_idx >= 0);
+
+  while (bounded_buffer_readable == BOUNDED_BUFFER_MAX) {
+    pthread_cond_wait(&bounded_buffer_put_cond, &bounded_buffer_mutex);
+  }
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_MAX - 1);
+  assert(bounded_buffer_readable >= 0);
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_write_idx >= 0);
+
+  bigmatrix[bounded_buffer_write_idx] = value;
+  bounded_buffer_write_idx = (bounded_buffer_write_idx + 1) % BOUNDED_BUFFER_MAX;
+  bounded_buffer_readable += 1;
+
+  pthread_cond_signal(&bounded_buffer_get_cond);
+  pthread_mutex_unlock(&bounded_buffer_mutex);
   return 0;
 }
 
 Matrix * get() {
-  return NULL;
+  pthread_mutex_lock(&bounded_buffer_mutex);
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_readable >= 0);
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_write_idx >= 0);
+
+  while (bounded_buffer_readable <= 0) {
+    pthread_cond_wait(&bounded_buffer_get_cond, &bounded_buffer_mutex);
+  }
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_readable >= 1);
+
+  size_t idx;
+  // TODO(Elijah): Does this maths, maths?
+  if (bounded_buffer_write_idx >= bounded_buffer_readable) idx = bounded_buffer_write_idx - bounded_buffer_readable;
+  else idx = BOUNDED_BUFFER_MAX - (bounded_buffer_readable - bounded_buffer_idx);
+
+  Matrix *value = bigmatrix[idx];
+  assert(value != NULL);
+
+  bounded_buffer_readable -= 1;
+
+  pthread_cond_signal(&bounded_buffer_put_cond);
+  pthread_mutex_unlock(&bounded_buffer_mutex);
+
+  return value;
 }
 
 // Matrix PRODUCER worker thread
 void *prod_worker(void *arg) {
+  (void) arg;
   return NULL;
 }
 
 // Matrix CONSUMER worker thread
 void *cons_worker(void *arg) {
+  (void) arg;
   return NULL;
 }
