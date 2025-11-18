@@ -21,7 +21,7 @@
 
 // Define Locks, Condition variables, and so on here
 
-/// Protects bigmatrix
+/// Protects bigmatrix, bounded_buffer_write_idx, and bounded_buffer_readable
 pthread_mutex_t bounded_buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
 /// Protects bigmatrix, wait on if you are trying to put
 pthread_cond_t bounded_buffer_put_cond = PTHREAD_COND_INITIALIZER;
@@ -29,17 +29,21 @@ pthread_cond_t bounded_buffer_put_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t bounded_buffer_get_cond = PTHREAD_COND_INITIALIZER;
 
 /// Write head into the ring buffer
+/// protected by bounded_buffer_mutex
 size_t bounded_buffer_write_idx = 0;
 /// The number of entries readable behind the `bounded_buffer_write_idx`
+/// protected by bounded_buffer_mutex
 size_t bounded_buffer_readable = 0;
 
 // Bounded buffer put() get()
 /// Thread safe
 /// Whomever `get`s the value owns it, do not free it until then.
+/// TODO(Elijah): What are we supposed to return? the index?
 int put(Matrix * value) {
   assert(value != NULL);
-  pthread_mutex_lock(&bounded_buffer_mutex);
   assert(BOUNDED_BUFFER_SIZE > 0 && "Buffer must be a valid size");
+
+  pthread_mutex_lock(&bounded_buffer_mutex);
   assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than slots exists");
   assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "write_idx must be within the buffer");
 
@@ -68,8 +72,9 @@ int put(Matrix * value) {
 /// Thread safe
 /// Caller takes ownership of return, and it just be freed.
 Matrix * get() {
-  pthread_mutex_lock(&bounded_buffer_mutex);
   assert(BOUNDED_BUFFER_SIZE > 0 && "Buffer must be a valid size");
+
+  pthread_mutex_lock(&bounded_buffer_mutex);
   assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than slots exists");
   assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "write_idx must be within the buffer");
 

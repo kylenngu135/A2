@@ -6,6 +6,7 @@
  *  TCSS 422 - Operating Systems
  */
 
+/// ring buffer. Should call `get` or `put` to use.
 Matrix ** bigmatrix;
 
 // PRODUCER-CONSUMER put() get() function prototypes
