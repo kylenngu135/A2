@@ -57,7 +57,7 @@ int main (int argc, char *argv[]) {
   }
 
   // Seed the random number generator with the system time
-  srand((unsigned) time(NULL));
+  srand((unsigned) time(NULL)); // the time arg should be NULL by man page
 
   printf("Producing %d matrices in mode %d.\n", NUMBER_OF_MATRICES, MATRIX_MODE);
   printf("Using a shared buffer of size=%d\n", BOUNDED_BUFFER_SIZE);

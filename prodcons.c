@@ -13,18 +13,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <assert.h>
 #include "counter.h"
 #include "matrix.h"
 #include "pcmatrix.h"
 #include "prodcons.h"
 
-
 // Define Locks, Condition variables, and so on here
 
 /// Protects bigmatrix
 pthread_mutex_t bounded_buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
-/// Protects bigmatrix
+/// Protects bigmatrix, wait on if you are trying to put
 pthread_cond_t bounded_buffer_put_cond = PTHREAD_COND_INITIALIZER;
+/// Protects bigmatrix, wait on if you are trying to get
 pthread_cond_t bounded_buffer_get_cond = PTHREAD_COND_INITIALIZER;
 
 /// Write head into the ring buffer
@@ -36,22 +37,28 @@ size_t bounded_buffer_readable = 0;
 int put(Matrix * value) {
   assert(value != NULL);
   pthread_mutex_lock(&bounded_buffer_mutex);
-  assert(bounded_buffer_readable <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE);
   assert(bounded_buffer_readable >= 0);
-  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE);
   assert(bounded_buffer_write_idx >= 0);
 
-  while (bounded_buffer_readable == BOUNDED_BUFFER_MAX) {
+  while (bounded_buffer_readable == BOUNDED_BUFFER_SIZE) {
     pthread_cond_wait(&bounded_buffer_put_cond, &bounded_buffer_mutex);
   }
-  assert(bounded_buffer_readable <= BOUNDED_BUFFER_MAX - 1);
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE - 1);
   assert(bounded_buffer_readable >= 0);
-  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE);
   assert(bounded_buffer_write_idx >= 0);
 
+  assert(bigmatrix[bounded_buffer_write_idx] == NULL);
   bigmatrix[bounded_buffer_write_idx] = value;
-  bounded_buffer_write_idx = (bounded_buffer_write_idx + 1) % BOUNDED_BUFFER_MAX;
+  bounded_buffer_write_idx = (bounded_buffer_write_idx + 1) % BOUNDED_BUFFER_SIZE;
   bounded_buffer_readable += 1;
+
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE);
+  assert(bounded_buffer_readable >= 0);
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE);
+  assert(bounded_buffer_write_idx >= 0);
 
   pthread_cond_signal(&bounded_buffer_get_cond);
   pthread_mutex_unlock(&bounded_buffer_mutex);
@@ -60,30 +67,32 @@ int put(Matrix * value) {
 
 Matrix * get() {
   pthread_mutex_lock(&bounded_buffer_mutex);
-  assert(bounded_buffer_readable <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE);
   assert(bounded_buffer_readable >= 0);
-  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE);
   assert(bounded_buffer_write_idx >= 0);
 
   while (bounded_buffer_readable <= 0) {
     pthread_cond_wait(&bounded_buffer_get_cond, &bounded_buffer_mutex);
   }
-  assert(bounded_buffer_readable <= BOUNDED_BUFFER_MAX);
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE);
   assert(bounded_buffer_readable >= 1);
 
   size_t idx;
   // TODO(Elijah): Does this maths, maths?
   if (bounded_buffer_write_idx >= bounded_buffer_readable) idx = bounded_buffer_write_idx - bounded_buffer_readable;
-  else idx = BOUNDED_BUFFER_MAX - (bounded_buffer_readable - bounded_buffer_idx);
+  else idx = BOUNDED_BUFFER_SIZE - (bounded_buffer_readable - bounded_buffer_write_idx);
 
   Matrix *value = bigmatrix[idx];
   assert(value != NULL);
+  bigmatrix[idx] = NULL;
 
   bounded_buffer_readable -= 1;
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE - 1);
+  assert(bounded_buffer_readable >= 0);
 
   pthread_cond_signal(&bounded_buffer_put_cond);
   pthread_mutex_unlock(&bounded_buffer_mutex);
-
   return value;
 }
 
