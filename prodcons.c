@@ -61,7 +61,6 @@ int put(Matrix * value) {
   assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE);
   assert(bounded_buffer_readable >= 1);
 
-
   pthread_cond_signal(&bounded_buffer_get_cond);
   pthread_mutex_unlock(&bounded_buffer_mutex);
   return 0;
@@ -88,8 +87,8 @@ Matrix * get() {
   assert(idx <= BOUNDED_BUFFER_SIZE - 1);
   assert(idx >= 0);
 
+  assert(bigmatrix[idx] != NULL);
   Matrix *value = bigmatrix[idx];
-  assert(value != NULL);
   bigmatrix[idx] = NULL;
 
   bounded_buffer_readable -= 1;
