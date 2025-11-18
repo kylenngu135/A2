@@ -42,6 +42,10 @@
 int main (int argc, char *argv[]) {
   // Process command line arguments
   int numw = NUMWORK;
+  BOUNDED_BUFFER_SIZE = MAX;
+  NUMBER_OF_MATRICES = LOOPS;
+  MATRIX_MODE = DEFAULT_MATRIX_MODE;
+
   if (argc == 1) {
     printf("USING DEFAULTS: worker_threads=%d bounded_buffer_size=%d matricies=%d matrix_mode=%d\n", numw, BOUNDED_BUFFER_SIZE, NUMBER_OF_MATRICES, MATRIX_MODE);
   } else {
