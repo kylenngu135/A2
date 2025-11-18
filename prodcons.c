@@ -107,11 +107,12 @@ Matrix * get() {
 
 // Matrix PRODUCER worker thread
 void *prod_worker(void *arg) {
+  DEBUG("Starting producer");
   counter_t *prod_count = arg;
 
   while (get_cnt(prod_count) < NUMBER_OF_MATRICES) {
     increment_cnt(prod_count);
-    Matrix *matrix = genMatrixRandom();
+    Matrix *matrix = GenMatrixRandom();
     put(matrix);
   }
 
@@ -120,11 +121,13 @@ void *prod_worker(void *arg) {
 
 // Matrix CONSUMER worker thread
 void *cons_worker(void *arg) {
+  DEBUG("Starting consumer");
   counter_t *cons_count = arg;
 
   while (get_cnt(cons_count) < NUMBER_OF_MATRICES) {
     increment_cnt(cons_count);
-    get(matrix);
+    Matrix *mat = get();
+    assert(mat != NULL && "returned matrix musn't be NULL");
   }
 
   return NULL;

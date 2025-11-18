@@ -28,3 +28,5 @@ int NUMBER_OF_MATRICES;
 #define DEFAULT_MATRIX_MODE 0
 /// Should be a `size_t` and set to `DEFAULT_MATRIX_MODE`
 int MATRIX_MODE;
+
+#define DEBUG(...) {printf("%s:%d: ", __FILE__, __LINE__); printf(__VA_ARGS__); printf("\n");}

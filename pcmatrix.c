@@ -63,6 +63,14 @@ int main (int argc, char *argv[]) {
   printf("Using a shared buffer of size=%d\n", BOUNDED_BUFFER_SIZE);
   printf("With %d producer and consumer thread(s).\n", numw);
   printf("\n");
+  DEBUG("---- test");
+
+  bigmatrix = calloc(BOUNDED_BUFFER_SIZE, sizeof(Matrix *));
+  // no free, lives to end of program
+  if (bigmatrix == NULL) {
+    perror("pcmatrix: calloc");
+    return 1;
+  }
 
   pthread_t *pr = calloc(numw, sizeof(pthread_t));
   // no free, lives to end of program
@@ -77,18 +85,17 @@ int main (int argc, char *argv[]) {
     return 1;
   }
 
-  bigmatrix = (Matrix **) malloc(sizeof(Matrix *) * BOUNDED_BUFFER_SIZE);
+  counter_t producer_counter, consumer_counter;
 
-  counter_t producer_counter;
-  counter_t consumer_counter;
-
+  DEBUG("making counters");
   init_cnt(&producer_counter);
   init_cnt(&consumer_counter);
 
-  for (int matrix = 0; matrix < numw; matrix++) {
+  for (int worker = 0; worker < numw; worker++) {
+    DEBUG("created worker group %d", worker);
     // Add your code here to create threads and so on
-    pthread_create(pr[matrix], NULL, prod_worker, &producer_counter);
-    pthread_create(co[matrix], NULL, cons_worker, &consumer_counter);
+    pthread_create(&pr[worker], NULL, prod_worker, &producer_counter);
+    pthread_create(&co[worker], NULL, cons_worker, &consumer_counter);
   }
 
   // These are used to aggregate total numbers for main thread output
@@ -97,6 +104,13 @@ int main (int argc, char *argv[]) {
   int prodtot = 0; // total sum of elements for matrices produced
   int constot = 0; // total sum of elements for matrices consumed
   int consmul = 0; // total # multiplications
+
+  for (int worker = 0; worker < numw; worker++) {
+    void *prod_ret, *cons_ret;
+
+    pthread_join(&pr[worker], &prod_ret);
+    pthread_join(&co[worker], &cons_ret);
+  }
 
   // consume ProdConsStats from producer and consumer threads [HINT: return from join]
   // add up total matrix stats in prs, cos, prodtot, constot, consmul
