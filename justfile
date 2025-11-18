@@ -1,8 +1,8 @@
-CC := shell("if command -v zig &> /dev/null; then echo zig cc; else echo gcc; fi")
-
-EXE_NAME := "pcMatrix"
+CC := "gcc" #shell("if command -v zig &> /dev/null; then echo zig cc; else echo gcc; fi")
 C_FILES := "counter.c prodcons.c matrix.c pcmatrix.c"
 C_FLAGS := "-pthread -I. -Wall -Wextra -Wno-int-conversion -D_GNU_SOURCE -fcommon -std=c11"
+
+EXE_NAME := "pcMatrix"
 
 default:
     @just --list

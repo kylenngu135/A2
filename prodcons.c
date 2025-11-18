@@ -21,27 +21,24 @@
 
 // Define Locks, Condition variables, and so on here
 
-
+/// Protects bigmatrix
+pthread_mutex_t BOUNDED_BUFFER_MUTEX = PTHREAD_MUTEX_INITIALIZER;
 
 // Bounded buffer put() get()
-int put(Matrix * value)
-{
-
+int put(Matrix * value) {
+  return 0;
 }
 
-Matrix * get()
-{
+Matrix * get() {
   return NULL;
 }
 
 // Matrix PRODUCER worker thread
-void *prod_worker(void *arg)
-{
+void *prod_worker(void *arg) {
   return NULL;
 }
 
 // Matrix CONSUMER worker thread
-void *cons_worker(void *arg)
-{
+void *cons_worker(void *arg) {
   return NULL;
 }
