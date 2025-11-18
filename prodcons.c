@@ -39,26 +39,28 @@ int put(Matrix * value) {
   pthread_mutex_lock(&bounded_buffer_mutex);
   assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE);
   assert(bounded_buffer_readable >= 0);
-  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE);
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE - 1);
   assert(bounded_buffer_write_idx >= 0);
 
   while (bounded_buffer_readable == BOUNDED_BUFFER_SIZE) {
     pthread_cond_wait(&bounded_buffer_put_cond, &bounded_buffer_mutex);
   }
-  assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE - 1);
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE);
   assert(bounded_buffer_readable >= 0);
-  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE);
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE - 1);
   assert(bounded_buffer_write_idx >= 0);
 
   assert(bigmatrix[bounded_buffer_write_idx] == NULL);
   bigmatrix[bounded_buffer_write_idx] = value;
-  bounded_buffer_write_idx = (bounded_buffer_write_idx + 1) % BOUNDED_BUFFER_SIZE;
-  bounded_buffer_readable += 1;
 
-  assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE);
-  assert(bounded_buffer_readable >= 0);
-  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE);
+  bounded_buffer_write_idx = (bounded_buffer_write_idx + 1) % BOUNDED_BUFFER_SIZE;
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE - 1);
   assert(bounded_buffer_write_idx >= 0);
+
+  bounded_buffer_readable += 1;
+  assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE);
+  assert(bounded_buffer_readable >= 1);
+
 
   pthread_cond_signal(&bounded_buffer_get_cond);
   pthread_mutex_unlock(&bounded_buffer_mutex);
@@ -69,7 +71,7 @@ Matrix * get() {
   pthread_mutex_lock(&bounded_buffer_mutex);
   assert(bounded_buffer_readable <= BOUNDED_BUFFER_SIZE);
   assert(bounded_buffer_readable >= 0);
-  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE);
+  assert(bounded_buffer_write_idx <= BOUNDED_BUFFER_SIZE - 1);
   assert(bounded_buffer_write_idx >= 0);
 
   while (bounded_buffer_readable <= 0) {
@@ -79,9 +81,12 @@ Matrix * get() {
   assert(bounded_buffer_readable >= 1);
 
   size_t idx;
-  // TODO(Elijah): Does this maths, maths?
+  // TODO(Elijah): Does this math, maths?
   if (bounded_buffer_write_idx >= bounded_buffer_readable) idx = bounded_buffer_write_idx - bounded_buffer_readable;
   else idx = BOUNDED_BUFFER_SIZE - (bounded_buffer_readable - bounded_buffer_write_idx);
+
+  assert(idx <= BOUNDED_BUFFER_SIZE - 1);
+  assert(idx >= 0);
 
   Matrix *value = bigmatrix[idx];
   assert(value != NULL);
