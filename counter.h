@@ -15,8 +15,8 @@ typedef struct __counter_t {
 } counter_t;
 
 typedef struct __counters_t {
-  counter_t * prod;
-  counter_t * cons;
+  counter_t *prod;
+  counter_t *cons;
 } counters_t;
 
 // counter methods

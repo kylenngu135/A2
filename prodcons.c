@@ -38,8 +38,8 @@ size_t bounded_buffer_readable = 0;
 // Bounded buffer put() get()
 /// Thread safe
 /// Whomever `get`s the value owns it, do not free it until then.
-/// TODO(Elijah): What are we supposed to return? the index?
-int put(Matrix * value) {
+/// TODO:(Elijah): What are we supposed to return? the index?
+int put(Matrix *value) {
   assert(value != NULL);
   assert(BOUNDED_BUFFER_SIZE > 0 && "Buffer must be a valid size");
 
@@ -107,12 +107,25 @@ Matrix * get() {
 
 // Matrix PRODUCER worker thread
 void *prod_worker(void *arg) {
-  (void) arg;
+  counter_t *prod_count = arg;
+
+  while (get_cnt(prod_count) < NUMBER_OF_MATRICES) {
+    increment_cnt(prod_count);
+    Matrix *matrix = genMatrixRandom();
+    put(matrix);
+  }
+
   return NULL;
 }
 
 // Matrix CONSUMER worker thread
 void *cons_worker(void *arg) {
-  (void) arg;
+  counter_t *cons_count = arg;
+
+  while (get_cnt(cons_count) < NUMBER_OF_MATRICES) {
+    increment_cnt(cons_count);
+    get(matrix);
+  }
+
   return NULL;
 }

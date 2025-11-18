@@ -77,7 +77,19 @@ int main (int argc, char *argv[]) {
     return 1;
   }
 
-  // Add your code here to create threads and so on
+  bigmatrix = (Matrix **) malloc(sizeof(Matrix *) * BOUNDED_BUFFER_SIZE);
+
+  counter_t producer_counter;
+  counter_t consumer_counter;
+
+  init_cnt(&producer_counter);
+  init_cnt(&consumer_counter);
+
+  for (int matrix = 0; matrix < numw; matrix++) {
+    // Add your code here to create threads and so on
+    pthread_create(pr[matrix], NULL, prod_worker, &producer_counter);
+    pthread_create(co[matrix], NULL, cons_worker, &consumer_counter);
+  }
 
   // These are used to aggregate total numbers for main thread output
   int prs = 0; // total #matrices produced
