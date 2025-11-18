@@ -47,7 +47,7 @@ int put(Matrix *value) {
   assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than slots exists");
   assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "write_idx must be within the buffer");
 
-  while (bounded_buffer_readable == (size_t) BOUNDED_BUFFER_SIZE) {
+  if (bounded_buffer_readable == (size_t) BOUNDED_BUFFER_SIZE) {
     assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1  && "write_idx must be within the buffer");
     // no space to write, wait until a space opens up.
     pthread_cond_wait(&bounded_buffer_put_cond, &bounded_buffer_mutex);
@@ -78,7 +78,7 @@ Matrix * get() {
   assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than slots exists");
   assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "write_idx must be within the buffer");
 
-  while (bounded_buffer_readable <= 0) {
+  if (bounded_buffer_readable <= 0) {
     // nothing to read, wait until a slot fills.
     pthread_cond_wait(&bounded_buffer_get_cond, &bounded_buffer_mutex);
   }
