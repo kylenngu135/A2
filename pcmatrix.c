@@ -99,11 +99,11 @@ int main (int argc, char *argv[]) {
   for (int worker = 0; worker < numw; worker++) {
     ProdConsStats *val;
 
-    pthread_join(workers[worker], &val);
+    pthread_join(workers[worker], (void **)&val);
     prod += val->matrixtotal;
     prod_sum += val->sumtotal;
 
-    pthread_join(workers[worker + numw], &val);
+    pthread_join(workers[worker + numw], (void**)&val);
     cons += val->matrixtotal;
     cons_sum += val->sumtotal;
     cons_mul += val->multtotal;
