@@ -108,23 +108,13 @@ Matrix * get() {
   return value;
 }
 
-/// do an atomic RMW iff the condition passes
-bool claim(counter_t *cnt) {
-  pthread_mutex_lock(&cnt->lock);
-  bool ret = cnt->value < NUMBER_OF_MATRICES;
-  if (ret) cnt->value += 1;
-  pthread_mutex_unlock(&cnt->lock);
-
-  return ret;
-}
-
 // Matrix PRODUCER worker thread
 void *prod_worker(void *arg) {
   counter_t *prod_count = arg;
   ProdConsStats *prodcons = calloc(1, sizeof(ProdConsStats));
   if (prodcons == NULL) return NULL;
 
-  while (claim(prod_count)) {
+  while (claim_cnt(prod_count, NUMBER_OF_MATRICES, 1)) {
     prodcons->matrixtotal += 1;
     Matrix *matrix = GenMatrixRandom();
     assert(matrix != NULL && "generated matrix musn't be NULL");
@@ -145,12 +135,12 @@ void *cons_worker(void *arg) {
   ProdConsStats *prodcons = calloc(1, sizeof(ProdConsStats));
   if (prodcons == NULL) return NULL;
 
-  while (claim(cons_count)) {
+  while (claim_cnt(cons_count, NUMBER_OF_MATRICES, 1)) {
     if ((lhs = get()) == NULL) return prodcons;
     prodcons->matrixtotal += 1;
     prodcons->sumtotal += SumMatrix(lhs);
 
-    while (claim(cons_count)) {
+    while (claim_cnt(cons_count, NUMBER_OF_MATRICES, 1)) {
       if ((rhs = get()) == NULL) {
         FreeMatrix(lhs);
         return prodcons;
@@ -189,6 +179,5 @@ void *cons_worker(void *arg) {
     FreeMatrix(mult);
   }
 
-ret:
   return prodcons;
 }

@@ -30,3 +30,13 @@ int get_cnt(counter_t *c)  {
   pthread_mutex_unlock(&c->lock);
   return rc;
 }
+
+int claim_cnt(counter_t *c, int limit, int inc) {
+  pthread_mutex_lock(&c->lock);
+  int ret = c->value + inc <= limit;
+  if (ret) c->value += inc;
+  pthread_mutex_unlock(&c->lock);
+
+  return ret;
+}
+

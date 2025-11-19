@@ -22,4 +22,7 @@ typedef struct __counters_t {
 // counter methods
 void init_cnt(counter_t *c);
 void increment_cnt(counter_t *c);
+/// increments the counter by `n` iff it won't go past `limit`
+/// returns 1 if increments, 0 if it doesn't
+int  claim_cnt(counter_t *c, int limit, int n);
 int get_cnt(counter_t *c);

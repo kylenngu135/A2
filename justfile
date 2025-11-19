@@ -12,4 +12,4 @@ compile:
     {{CC}} {{C_FLAGS}} -o ./bin/{{EXE_NAME}} {{C_FILES}}
 
 run *ARGS: compile
-    ./bin/{{EXE_NAME}} {{ARGS}}
+    valgrind ./bin/{{EXE_NAME}} {{ARGS}}
