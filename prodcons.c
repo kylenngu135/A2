@@ -12,6 +12,7 @@
 // Include only libraries for this module
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <pthread.h>
 #include <assert.h>
 #include "counter.h"
@@ -20,6 +21,8 @@
 #include "prodcons.h"
 
 // Define Locks, Condition variables, and so on here
+/// Locks stdout so only one prints at a time.
+pthread_mutex_t stdout_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /// Protects bigmatrix, bounded_buffer_write_idx, and bounded_buffer_readable
 pthread_mutex_t bounded_buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -44,34 +47,29 @@ int put(Matrix *value) {
   assert(BOUNDED_BUFFER_SIZE > 0 && "Buffer must be a valid size");
 
   pthread_mutex_lock(&bounded_buffer_mutex);
-  assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than slots exists");
-  assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "write_idx must be within the buffer");
+    assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than slots exists");
+    assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "write_idx must be within the buffer");
 
-  if (bounded_buffer_readable == (size_t) BOUNDED_BUFFER_SIZE) {
-    // no space to write, wait until a space opens up.
-    pthread_cond_wait(&bounded_buffer_put_cond, &bounded_buffer_mutex);
-    if (bounded_buffer_readable == (size_t) BOUNDED_BUFFER_SIZE) goto error;
-  }
+    while (bounded_buffer_readable == (size_t) BOUNDED_BUFFER_SIZE) {
+      // no space to write, wait until a space opens up.
+      pthread_cond_wait(&bounded_buffer_put_cond, &bounded_buffer_mutex);
+    }
 
-  assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "cannot have more readable than slots exist and it musn't be full");
-  assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "must have an extra slot open for the read");
+    assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "cannot have more readable than slots exist and it musn't be full");
+    assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "must have an extra slot open for the read");
 
-  assert(bigmatrix[bounded_buffer_write_idx] == NULL && "overridden entry must have been cleared");
-  bigmatrix[bounded_buffer_write_idx] = value;
+    assert(bigmatrix[bounded_buffer_write_idx] == NULL && "overridden entry must have been cleared");
+    bigmatrix[bounded_buffer_write_idx] = value;
 
-  bounded_buffer_readable += 1;
-  assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than space available");
+    bounded_buffer_readable += 1;
+    assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than space available");
 
-  bounded_buffer_write_idx = (bounded_buffer_write_idx + 1) % (size_t) BOUNDED_BUFFER_SIZE;
-  assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "new index must be within buffer");
+    bounded_buffer_write_idx = (bounded_buffer_write_idx + 1) % (size_t) BOUNDED_BUFFER_SIZE;
+    assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "new index must be within buffer");
 
-  pthread_cond_signal(&bounded_buffer_get_cond);
+    pthread_cond_signal(&bounded_buffer_get_cond);
   pthread_mutex_unlock(&bounded_buffer_mutex);
   return 0;
-
-error:
-  pthread_mutex_unlock(&bounded_buffer_mutex);
-  return -1;
 }
 
 /// Thread safe
@@ -81,75 +79,110 @@ Matrix * get() {
   assert(BOUNDED_BUFFER_SIZE > 0 && "Buffer must be a valid size");
 
   pthread_mutex_lock(&bounded_buffer_mutex);
-  assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than slots exists");
-  assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "write_idx must be within the buffer");
+    assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than slots exists");
+    assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "write_idx must be within the buffer");
 
-  if (bounded_buffer_readable == 0) {
-    // nothing to read, wait until a slot fills.
-    pthread_cond_wait(&bounded_buffer_get_cond, &bounded_buffer_mutex);
+    while (bounded_buffer_readable == 0) {
+      // nothing to read, wait until a slot fills.
+      pthread_cond_wait(&bounded_buffer_get_cond, &bounded_buffer_mutex);
+    }
+    assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than slots exist");
+    assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "must have an extra slot open for the read");
 
-    if (bounded_buffer_readable == 0) goto error;
-  }
-  assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE && "cannot have more readable than slots exist");
-  assert(bounded_buffer_write_idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "must have an extra slot open for the read");
+    // TODO(Elijah): Does this math, maths?
+    size_t idx = (bounded_buffer_write_idx >= bounded_buffer_readable)
+      ? bounded_buffer_write_idx - bounded_buffer_readable
+      : (size_t) BOUNDED_BUFFER_SIZE - (bounded_buffer_readable - bounded_buffer_write_idx);
 
-  // TODO(Elijah): Does this math, maths?
-  size_t idx = (bounded_buffer_write_idx >= bounded_buffer_readable)
-    ? bounded_buffer_write_idx - bounded_buffer_readable
-    : (size_t) BOUNDED_BUFFER_SIZE - (bounded_buffer_readable - bounded_buffer_write_idx);
+    assert(idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "retreival index just be be within the buffer");
 
-  assert(idx <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "retreival index just be be within the buffer");
+    assert(bigmatrix[idx] != NULL && "Entry read be filled (i.e. not NULL)");
+    Matrix *value = bigmatrix[idx];
+    bigmatrix[idx] = NULL; // clear position we just took
 
-  assert(bigmatrix[idx] != NULL && "Entry read be filled (i.e. not NULL)");
-  Matrix *value = bigmatrix[idx];
-  bigmatrix[idx] = NULL; // clear position we just took
+    bounded_buffer_readable -= 1;
+    assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "must have less entries than buffer size (-1 since we just took one)");
 
-  bounded_buffer_readable -= 1;
-  assert(bounded_buffer_readable <= (size_t) BOUNDED_BUFFER_SIZE - 1 && "must have less entries than buffer size (-1 since we just took one)");
-
-  pthread_cond_signal(&bounded_buffer_put_cond);
+    pthread_cond_signal(&bounded_buffer_put_cond);
   pthread_mutex_unlock(&bounded_buffer_mutex);
   return value;
-error:
-  pthread_mutex_unlock(&bounded_buffer_mutex);
-  return NULL;
+}
+
+/// do an atomic RMW iff the condition passes
+bool claim(counter_t *cnt) {
+  pthread_mutex_lock(&cnt->lock);
+  bool ret = cnt->value < NUMBER_OF_MATRICES;
+  if (ret) cnt->value += 1;
+  pthread_mutex_unlock(&cnt->lock);
+
+  return ret;
 }
 
 // Matrix PRODUCER worker thread
 void *prod_worker(void *arg) {
-  DEBUG("Starting producer");
   counter_t *prod_count = arg;
+  ProdConsStats *prodcons = calloc(1, sizeof(ProdConsStats));
+  if (prodcons == NULL) return NULL;
 
-  while (get_cnt(prod_count) < NUMBER_OF_MATRICES) {
-    increment_cnt(prod_count);
+  while (claim(prod_count)) {
+    prodcons->matrixtotal += 1;
     Matrix *matrix = GenMatrixRandom();
     assert(matrix != NULL && "generated matrix musn't be NULL");
-    int ret;
-    while (get_cnt(prod_count) <= NUMBER_OF_MATRICES && (ret = put(matrix)) == -1);
-    if (ret == -1) return NULL;
+    assert(matrix->m != NULL && "generated matrix's elements cannot be NULL");
 
-    DEBUG("prod cnt: %d", get_cnt(prod_count));
+    prodcons->sumtotal += SumMatrix(matrix);
+
+    put(matrix);
   }
 
-  return NULL;
+  return prodcons;
 }
 
 // Matrix CONSUMER worker thread
 void *cons_worker(void *arg) {
-  DEBUG("Starting consumer");
+  Matrix *mult = NULL, *lhs = NULL, *rhs = NULL;
   counter_t *cons_count = arg;
+  ProdConsStats *prodcons = calloc(1, sizeof(ProdConsStats));
+  if (prodcons == NULL) return NULL;
 
-  while (get_cnt(cons_count) < NUMBER_OF_MATRICES) {
+  while (claim(cons_count)) {
+    if ((lhs = get()) == NULL) goto ret;
+    prodcons->matrixtotal += 1;
+    prodcons->sumtotal += SumMatrix(lhs);
 
-    Matrix *mat;
-    while (get_cnt(cons_count) < NUMBER_OF_MATRICES && (mat = get()) == NULL);
-    increment_cnt(cons_count);
-    if (mat == NULL) return NULL;
+    while (claim(cons_count)) {
+      if ((rhs = get()) == NULL) goto ret;
+      prodcons->matrixtotal += 1;
+      prodcons->sumtotal += SumMatrix(rhs);
 
-    FreeMatrix(mat);
+      assert(lhs != NULL);
+      assert(rhs != NULL);
 
-    DEBUG("cons cnt: %d", get_cnt(cons_count));
+      pthread_mutex_lock(&stdout_lock);
+        if ((mult = MatrixMultiply(lhs, rhs)) != NULL) break;
+      pthread_mutex_unlock(&stdout_lock);
+      FreeMatrix(rhs); rhs = NULL;
+    }
+    // locked from after loop unless mult is NULL.
+      if (mult == NULL) goto ret;
+
+      DisplayMatrix(lhs, stdout);
+      printf("    X\n");
+      DisplayMatrix(rhs, stdout);
+      printf("    =\n");
+      DisplayMatrix(mult, stdout);
+    pthread_mutex_unlock(&stdout_lock);
+
+    prodcons->multtotal += 1;
+
+    FreeMatrix(lhs);  lhs = NULL;
+    FreeMatrix(rhs);  rhs = NULL;
+    FreeMatrix(mult); mult = NULL;
   }
 
-  return NULL;
+ret:
+  if (lhs)  FreeMatrix(lhs);
+  if (rhs)  FreeMatrix(rhs);
+  if (mult) FreeMatrix(mult);
+  return prodcons;
 }

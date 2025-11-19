@@ -7,7 +7,8 @@ binaries=pcMatrix
 all: $(binaries)
 
 pcMatrix: counter.c prodcons.c matrix.c pcmatrix.c
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o ./bin/$@
 
 clean:
-	$(RM) -f $(binaries) *.o
+	$(RM) -fr ./bin
+	$(RM) -f *.o

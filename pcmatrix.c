@@ -71,53 +71,53 @@ int main (int argc, char *argv[]) {
     return 1;
   }
 
-  pthread_t *pr = calloc(numw, sizeof(pthread_t));
+  pthread_t *workers = calloc(numw * 2, sizeof(pthread_t));
   // no free, lives to end of program
-  if (pr == NULL) {
-    perror("pcmatrix: calloc");
-    return 1;
-  }
-  pthread_t *co = calloc(numw, sizeof(pthread_t));
-  // no free, lives to end of program
-  if (co == NULL) {
+  if (workers == NULL) {
     perror("pcmatrix: calloc");
     return 1;
   }
 
   counter_t producer_counter, consumer_counter;
 
-  DEBUG("making counters");
+  // DEBUG("making counters");
   init_cnt(&producer_counter);
   init_cnt(&consumer_counter);
 
   for (int worker = 0; worker < numw; worker++) {
-    DEBUG("creating worker group %d", worker);
+    // DEBUG("creating worker group %d", worker);
     // Add your code here to create threads and so on
-    pthread_create(&pr[worker], NULL, prod_worker, &producer_counter);
-    pthread_create(&co[worker], NULL, cons_worker, &consumer_counter);
-  }
-
-  for (int worker = 0; worker < numw; worker++) {
-    DEBUG("joining producer %d", worker);
-    pthread_join(pr[worker], NULL);
-    DEBUG("joining consumer %d", worker);
-    pthread_join(co[worker], NULL);
+    pthread_create(&workers[worker], NULL, prod_worker, &producer_counter);
+    pthread_create(&workers[worker + numw], NULL, cons_worker, &consumer_counter);
   }
 
   // These are used to aggregate total numbers for main thread output
-  int prs = producer_counter.value; // total #matrices produced
-  int cos = consumer_counter.value; // total #matrices consumed
-  int prodtot = 0; // total sum of elements for matrices produced
-  int constot = 0; // total sum of elements for matrices consumed
-  int consmul = 0; // total # multiplications
+  size_t prod = 0, cons = 0, prod_sum = 0, cons_sum = 0, cons_mul = 0; // total #matrices produced
 
   // consume ProdConsStats from producer and consumer threads [HINT: return from join]
   // add up total matrix stats in prs, cos, prodtot, constot, consmul
+  for (int worker = 0; worker < numw; worker++) {
+    ProdConsStats *val;
 
-  printf("Sum of Matrix elements --> Produced=%d = Consumed=%d\n", prodtot, constot);
-  printf("Matrices produced=%d consumed=%d multiplied=%d\n", prs, cos, consmul);
+    pthread_join(workers[worker], &val);
+    prod += val->matrixtotal;
+    prod_sum += val->sumtotal;
+
+    pthread_join(workers[worker + numw], &val);
+    cons += val->matrixtotal;
+    cons_sum += val->sumtotal;
+    cons_mul += val->multtotal;
+  }
+
+  printf("Sum of Matrix elements --> Produced=%zu = Consumed=%zu\n", prod_sum, cons_sum);
+  printf("Matrices produced=%zu consumed=%zu multiplied=%zu\n", prod, cons, cons_mul);
 
   for (int i = 0; i < BOUNDED_BUFFER_SIZE; i++) assert(bigmatrix[i] == NULL);
+
+  // no need to free, we are about to exit and OS and better at cleaning up than we are
+  // but I don't wanna lose points.
+  free(bigmatrix);
+  free(workers);
 
   return 0;
 }
