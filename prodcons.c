@@ -146,12 +146,15 @@ void *cons_worker(void *arg) {
   if (prodcons == NULL) return NULL;
 
   while (claim(cons_count)) {
-    if ((lhs = get()) == NULL) goto ret;
+    if ((lhs = get()) == NULL) return prodcons;
     prodcons->matrixtotal += 1;
     prodcons->sumtotal += SumMatrix(lhs);
 
     while (claim(cons_count)) {
-      if ((rhs = get()) == NULL) goto ret;
+      if ((rhs = get()) == NULL) {
+        FreeMatrix(lhs);
+        return prodcons;
+      };
       prodcons->matrixtotal += 1;
       prodcons->sumtotal += SumMatrix(rhs);
 
@@ -159,30 +162,33 @@ void *cons_worker(void *arg) {
       assert(rhs != NULL);
 
       pthread_mutex_lock(&stdout_lock);
-        if ((mult = MatrixMultiply(lhs, rhs)) != NULL) break;
+        // I wish `MatrixMultiply` didn't print, because having this
+        // behind the lock removes 90% of the point of having multiple
+        // consumers
+        if ((mult = MatrixMultiply(lhs, rhs)) != NULL) {
+          DisplayMatrix(lhs, stdout);
+          printf("    X\n");
+          DisplayMatrix(rhs, stdout);
+          printf("    =\n");
+          DisplayMatrix(mult, stdout);
+        };
       pthread_mutex_unlock(&stdout_lock);
-      FreeMatrix(rhs); rhs = NULL;
+
+      if (mult != NULL) goto finish;
+
+      FreeMatrix(rhs);
     }
-    // locked from after loop unless mult is NULL.
-      if (mult == NULL) goto ret;
+    FreeMatrix(lhs);
+    return prodcons;
 
-      DisplayMatrix(lhs, stdout);
-      printf("    X\n");
-      DisplayMatrix(rhs, stdout);
-      printf("    =\n");
-      DisplayMatrix(mult, stdout);
-    pthread_mutex_unlock(&stdout_lock);
-
+  finish:
     prodcons->multtotal += 1;
 
-    FreeMatrix(lhs);  lhs = NULL;
-    FreeMatrix(rhs);  rhs = NULL;
-    FreeMatrix(mult); mult = NULL;
+    FreeMatrix(lhs);
+    FreeMatrix(rhs);
+    FreeMatrix(mult);
   }
 
 ret:
-  if (lhs)  FreeMatrix(lhs);
-  if (rhs)  FreeMatrix(rhs);
-  if (mult) FreeMatrix(mult);
   return prodcons;
 }

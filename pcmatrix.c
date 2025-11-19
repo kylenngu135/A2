@@ -46,6 +46,7 @@ int main (int argc, char *argv[]) {
   NUMBER_OF_MATRICES = LOOPS;
   MATRIX_MODE = DEFAULT_MATRIX_MODE;
 
+  // this way is much simplier
   if (argc == 1) {
     printf("USING DEFAULTS: worker_threads=%d bounded_buffer_size=%d matricies=%d matrix_mode=%d\n", numw, BOUNDED_BUFFER_SIZE, NUMBER_OF_MATRICES, MATRIX_MODE);
   } else {
@@ -87,7 +88,7 @@ int main (int argc, char *argv[]) {
   for (int worker = 0; worker < numw; worker++) {
     // DEBUG("creating worker group %d", worker);
     // Add your code here to create threads and so on
-    pthread_create(&workers[worker], NULL, prod_worker, &producer_counter);
+    pthread_create(&workers[worker],        NULL, prod_worker, &producer_counter);
     pthread_create(&workers[worker + numw], NULL, cons_worker, &consumer_counter);
   }
 
@@ -100,13 +101,19 @@ int main (int argc, char *argv[]) {
     ProdConsStats *val;
 
     pthread_join(workers[worker], (void **)&val);
-    prod += val->matrixtotal;
-    prod_sum += val->sumtotal;
+    if (val != NULL) {
+      prod += val->matrixtotal;
+      prod_sum += val->sumtotal;
+      free(val); val = NULL;
+    }
 
     pthread_join(workers[worker + numw], (void**)&val);
-    cons += val->matrixtotal;
-    cons_sum += val->sumtotal;
-    cons_mul += val->multtotal;
+    if (val != NULL) {
+      cons += val->matrixtotal;
+      cons_sum += val->sumtotal;
+      cons_mul += val->multtotal;
+      free(val); val = NULL;
+    }
   }
 
   printf("Sum of Matrix elements --> Produced=%zu = Consumed=%zu\n", prod_sum, cons_sum);
