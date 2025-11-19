@@ -63,7 +63,6 @@ int main (int argc, char *argv[]) {
   printf("Using a shared buffer of size=%d\n", BOUNDED_BUFFER_SIZE);
   printf("With %d producer and consumer thread(s).\n", numw);
   printf("\n");
-  DEBUG("---- test");
 
   bigmatrix = calloc(BOUNDED_BUFFER_SIZE, sizeof(Matrix *));
   // no free, lives to end of program
@@ -92,31 +91,33 @@ int main (int argc, char *argv[]) {
   init_cnt(&consumer_counter);
 
   for (int worker = 0; worker < numw; worker++) {
-    DEBUG("created worker group %d", worker);
+    DEBUG("creating worker group %d", worker);
     // Add your code here to create threads and so on
     pthread_create(&pr[worker], NULL, prod_worker, &producer_counter);
     pthread_create(&co[worker], NULL, cons_worker, &consumer_counter);
   }
 
+  for (int worker = 0; worker < numw; worker++) {
+    DEBUG("joining producer %d", worker);
+    pthread_join(pr[worker], NULL);
+    DEBUG("joining consumer %d", worker);
+    pthread_join(co[worker], NULL);
+  }
+
   // These are used to aggregate total numbers for main thread output
-  int prs = 0; // total #matrices produced
-  int cos = 0; // total #matrices consumed
+  int prs = producer_counter.value; // total #matrices produced
+  int cos = consumer_counter.value; // total #matrices consumed
   int prodtot = 0; // total sum of elements for matrices produced
   int constot = 0; // total sum of elements for matrices consumed
   int consmul = 0; // total # multiplications
 
-  for (int worker = 0; worker < numw; worker++) {
-    void *prod_ret, *cons_ret;
-
-    pthread_join(&pr[worker], &prod_ret);
-    pthread_join(&co[worker], &cons_ret);
-  }
-
   // consume ProdConsStats from producer and consumer threads [HINT: return from join]
   // add up total matrix stats in prs, cos, prodtot, constot, consmul
 
-  printf("Sum of Matrix elements --> Produced=%d = Consumed=%d\n", prs, cos);
-  printf("Matrices produced=%d consumed=%d multiplied=%d\n", prodtot, constot, consmul);
+  printf("Sum of Matrix elements --> Produced=%d = Consumed=%d\n", prodtot, constot);
+  printf("Matrices produced=%d consumed=%d multiplied=%d\n", prs, cos, consmul);
+
+  for (int i = 0; i < BOUNDED_BUFFER_SIZE; i++) assert(bigmatrix[i] == NULL);
 
   return 0;
 }

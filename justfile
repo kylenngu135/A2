@@ -11,5 +11,5 @@ compile:
     if [ ! -d bin ]; then mkdir bin; fi
     {{CC}} {{C_FLAGS}} -o ./bin/{{EXE_NAME}} {{C_FILES}}
 
-run: compile
-    ./bin/{{EXE_NAME}}
+run *ARGS: compile
+    ./bin/{{EXE_NAME}} {{ARGS}}

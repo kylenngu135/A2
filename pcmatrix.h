@@ -29,4 +29,4 @@ int NUMBER_OF_MATRICES;
 /// Should be a `size_t` and set to `DEFAULT_MATRIX_MODE`
 int MATRIX_MODE;
 
-#define DEBUG(...) {printf("%s:%d: ", __FILE__, __LINE__); printf(__VA_ARGS__); printf("\n");}
+#define DEBUG(str, ...) fprintf(stderr, "%s:%d: "str"\n", __FILE__, __LINE__ __VA_OPT__(,) __VA_ARGS__)
