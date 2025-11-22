@@ -65,27 +65,33 @@ int main (int argc, char *argv[]) {
   printf("With %d producer and consumer thread(s).\n", numw);
   printf("\n");
 
+  // allocate to big matrix
   bigmatrix = calloc(BOUNDED_BUFFER_SIZE, sizeof(Matrix *));
+
+  // check if allocation failed
   if (bigmatrix == NULL) {
     perror("pcmatrix: calloc");
     return 1;
   }
 
+  // allocate for thread
   pthread_t *workers = calloc(numw * 2, sizeof(pthread_t));
+
+  // check if allocation failed
   if (workers == NULL) {
     perror("pcmatrix: calloc");
     return 1;
   }
 
+  // declare counters
   counter_t producer_counter, consumer_counter;
 
-  // DEBUG("making counters");
+  // set
   init_cnt(&producer_counter);
   init_cnt(&consumer_counter);
 
   for (int worker = 0; worker < numw; worker++) {
-    // DEBUG("creating worker group %d", worker);
-    // Add your code here to create threads and so on
+    // create threads
     pthread_create(&workers[worker],        NULL, prod_worker, &producer_counter);
     pthread_create(&workers[worker + numw], NULL, cons_worker, &consumer_counter);
   }
@@ -98,6 +104,7 @@ int main (int argc, char *argv[]) {
   for (int worker = 0; worker < numw; worker++) {
     ProdConsStats *val;
 
+    // join thread
     pthread_join(workers[worker], (void **)&val);
     if (val != NULL) {
       prod += val->matrixtotal;
@@ -105,6 +112,7 @@ int main (int argc, char *argv[]) {
       free(val); val = NULL;
     }
 
+    // join thread
     pthread_join(workers[worker + numw], (void**)&val);
     if (val != NULL) {
       cons += val->matrixtotal;
@@ -119,8 +127,7 @@ int main (int argc, char *argv[]) {
 
   for (int i = 0; i < BOUNDED_BUFFER_SIZE; i++) assert(bigmatrix[i] == NULL);
 
-  // no need to free, we are about to exit and OS and better at cleaning up than we are
-  // but I don't wanna lose points.
+  // free
   free(bigmatrix);
   free(workers);
 
