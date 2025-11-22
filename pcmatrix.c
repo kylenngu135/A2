@@ -66,14 +66,12 @@ int main (int argc, char *argv[]) {
   printf("\n");
 
   bigmatrix = calloc(BOUNDED_BUFFER_SIZE, sizeof(Matrix *));
-  // no free, lives to end of program
   if (bigmatrix == NULL) {
     perror("pcmatrix: calloc");
     return 1;
   }
 
   pthread_t *workers = calloc(numw * 2, sizeof(pthread_t));
-  // no free, lives to end of program
   if (workers == NULL) {
     perror("pcmatrix: calloc");
     return 1;
